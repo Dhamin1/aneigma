@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aenigma — Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── RESET & BASE ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #09090b;
+      --surface:   #111113;
+      --border:    rgba(255,255,255,.07);
+      --text:      #f4f4f5;
+      --muted:     rgba(255,255,255,.38);
+      --accent:    #e8391e;
+      --green:     #22c55e;
+      --amber:     #f59e0b;
+      --red:       #ef4444;
+      --gold:      #fbbf24;
+      --blue:      #60a5fa;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── AUTH OVERLAY ─────────────────────────────────────── */
+    #authOverlay {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+    }
+
+    #authOverlay::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(232,57,30,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,57,30,.06) 1px, transparent 1px);
+      background-size: 48px 48px;
+      animation: gridDrift 24s linear infinite;
+    }
+
+    @keyframes gridDrift {
+      from { background-position: 0 0; }
+      to   { background-position: 48px 48px; }
+    }
+
+    .auth-card {
+      position: relative; z-index: 1;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 48px 44px 44px;
+      width: min(420px, calc(100vw - 32px));
+      box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(232,57,30,.12);
+      display: flex; flex-direction: column; align-items: center;
+      animation: cardIn .6s cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(40px) scale(.92); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .auth-icon {
+      font-size: 40px; margin-bottom: 20px;
+      filter: drop-shadow(0 0 16px rgba(232,57,30,.5));
+    }
+
+    .auth-title {
+      font-size: 22px; font-weight: 700;
+      margin-bottom: 6px; color: var(--text);
+    }
+
+    .auth-sub {
+      font-size: 13px; color: var(--muted);
+      margin-bottom: 36px; text-align: center;
+      letter-spacing: .04em;
+    }
+
+    .auth-label {
+      align-self: flex-start;
+      font-size: 11px; font-weight: 500;
+      color: var(--muted); letter-spacing: .1em;
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+
+    #adminPwInput {
+      width: 100%;
+      padding: 14px 18px;
+      font-size: 16px;
+      font-family: 'DM Mono', monospace;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: rgba(255,255,255,.05);
+      color: var(--text); outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      margin-bottom: 18px;
+      letter-spacing: .08em;
+    }
+
+    #adminPwInput:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(232,57,30,.15);
+    }
+
+    #authBtn {
+      width: 100%; padding: 14px;
+      font-size: 14.5px; font-family: 'DM Sans', sans-serif;
+      font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: #fff;
+      background: linear-gradient(135deg, var(--accent) 0%, #ff6b35 100%);
+      border: none; border-radius: 12px;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .2s, filter .2s;
+      box-shadow: 0 6px 24px rgba(232,57,30,.38);
+    }
+
+    #authBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(232,57,30,.55);
+      filter: brightness(1.08);
+    }
+
+    #authError {
+      margin-top: 14px; font-size: 13px;
+      font-weight: 500; color: #ff7070;
+      display: none;
+    }
+
+    /* ── DASHBOARD ────────────────────────────────────────── */
+    #dashboard { display: none; padding: 0 0 60px; }
+
+    /* top bar */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(9,9,11,.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 16px;
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .topbar-logo { font-family: 'Algerian', serif; font-size: 20px; color: var(--text); letter-spacing: .05em; }
+    .topbar-badge {
+      background: var(--accent);
+      color: #fff; font-size: 11px; font-weight: 600;
+      padding: 3px 9px; border-radius: 100px;
+      letter-spacing: .05em;
+    }
+
+    .live-indicator {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12.5px; color: var(--muted);
+    }
+
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 1.8s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .55; transform: scale(.8); }
+    }
+
+    #lastUpdated { font-size: 12px; color: var(--muted); }
+
+    /* main content */
+    .content { padding: 32px 32px 0; }
+
+    /* stat cards */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px; margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px 22px;
+      display: flex; flex-direction: column; gap: 6px;
+      transition: border-color .2s;
+    }
+
+    .stat-card:hover { border-color: rgba(255,255,255,.14); }
+
+    .stat-label {
+      font-size: 11.5px; font-weight: 500; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+
+    .stat-value {
+      font-size: 36px; font-weight: 700;
+      font-variant-numeric: tabular-nums; line-height: 1;
+    }
+
+    .stat-value.total  { color: var(--blue); }
+    .stat-value.active { color: var(--green); }
+    .stat-value.exited { color: var(--red); }
+    .stat-value.done   { color: var(--gold); }
+
+    /* search & controls */
+    .table-controls {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+
+    .search-box {
+      position: relative; flex: 1; max-width: 340px;
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 10px 16px 10px 40px;
+      font-size: 14px; font-family: 'DM Sans', sans-serif;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text); outline: none;
+      transition: border-color .2s;
+    }
+
+    #searchInput:focus { border-color: rgba(255,255,255,.2); }
+
+    .search-icon {
+      position: absolute; left: 13px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px; opacity: .4;
+      pointer-events: none;
+    }
+
+    .sort-btns { display: flex; gap: 8px; }
+
+    .sort-btn {
+      padding: 9px 14px;
+      font-size: 12.5px; font-weight: 500;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted); cursor: pointer;
+      transition: all .15s;
+    }
+
+    .sort-btn:hover { border-color: rgba(255,255,255,.15); color: var(--text); }
+    .sort-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,57,30,.08); }
+
+    /* table */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead { background: rgba(255,255,255,.03); }
+
+    th {
+      padding: 13px 18px;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .09em;
+      color: var(--muted); text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 14px 18px; font-size: 14px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    tbody tr { transition: background .15s; }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+
+    .cell-id {
+      font-family: 'DM Mono', monospace;
+      font-size: 13.5px; font-weight: 500; color: var(--text);
+    }
+
+    .cell-level { color: var(--text); }
+
+    .progress-wrap { display: flex; align-items: center; gap: 10px; }
+
+    .progress-bar-bg {
+      flex: 1; height: 6px; border-radius: 3px;
+      background: rgba(255,255,255,.08); min-width: 60px;
+    }
+
+    .progress-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent) 0%, #ff6b35 100%);
+      transition: width .4s ease;
+    }
+
+    .progress-pct {
+      font-size: 12px; color: var(--muted);
+      font-variant-numeric: tabular-nums; min-width: 32px;
+    }
+
+    .cell-time {
+      font-family: 'DM Mono', monospace;
+      font-size: 13.5px; color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cell-lastseen { font-size: 13px; color: var(--muted); }
+
+    /* status badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 100px;
+      font-size: 12px; font-weight: 600;
+      letter-spacing: .04em; white-space: nowrap;
+    }
+
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+    .badge.active   { background: rgba(34,197,94,.12);  color: var(--green); }
+    .badge.active .badge-dot { background: var(--green); animation: pulse 1.8s ease infinite; }
+    .badge.exited   { background: rgba(239,68,68,.12);  color: var(--red); }
+    .badge.exited .badge-dot { background: var(--red); }
+    .badge.completed { background: rgba(251,191,36,.12); color: var(--gold); }
+    .badge.completed .badge-dot { background: var(--gold); }
+    .badge.idle     { background: rgba(245,158,11,.12); color: var(--amber); }
+    .badge.idle .badge-dot { background: var(--amber); animation: pulse 2.4s ease infinite; }
+
+    /* empty state */
+    #emptyState {
+      padding: 80px 24px;
+      text-align: center; display: none;
+    }
+
+    #emptyState .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: .5; }
+    #emptyState p { font-size: 15px; color: var(--muted); }
+
+    /* error banner */
+    #errorBanner {
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.25);
+      border-radius: 12px; padding: 14px 18px;
+      margin-bottom: 24px; font-size: 14px;
+      color: #fca5a5; display: none;
+    }
+
+    /* config warning */
+    #configWarn {
+      background: rgba(245,158,11,.1);
+      border: 1px solid rgba(245,158,11,.25);
+      border-radius: 12px; padding: 16px 20px;
+      margin-bottom: 24px; font-size: 14px;
+      color: #fde68a; line-height: 1.6;
+    }
+
+    #configWarn code {
+      background: rgba(255,255,255,.08);
+      padding: 2px 6px; border-radius: 4px;
+      font-family: 'DM Mono', monospace; font-size: 13px;
+    }
+
+    @media (max-width: 680px) {
+      .topbar { padding: 12px 16px; }
+      .content { padding: 20px 16px 0; }
+      th, td { padding: 11px 12px; }
+      .progress-wrap { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── AUTH OVERLAY ── -->
+  <div id="authOverlay" role="dialog" aria-modal="true">
+    <div class="auth-card">
+      <div class="auth-icon">🔐</div>
+      <h1 class="auth-title">Monitor Access</h1>
+      <p class="auth-sub">Aenigma — Contest Admin Dashboard</p>
+      <label class="auth-label" for="adminPwInput">Admin Password</label>
+      <input type="password" id="adminPwInput" placeholder="Enter password" autocomplete="off" autofocus />
+      <button id="authBtn">Unlock Dashboard →</button>
+      <p id="authError">Incorrect password. Try again.</p>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div id="dashboard">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-logo">AENIGMA</span>
+        <span class="topbar-badge">MONITOR</span>
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span>Live</span>
+        </div>
+      </div>
+      <span id="lastUpdated">Connecting...</span>
+    </div>
+
+    <div class="content">
+
+      <!-- Config warning (shown if Firebase not set up) -->
+      <div id="configWarn" style="display:none;">
+        ⚠️ <strong>Firebase not configured.</strong>
+        Open <code>tracker.js</code> and replace <code>YOUR-PROJECT-URL</code> with your Firebase Realtime Database URL.
+        Also update <code>FIREBASE_DB_URL</code> below in this file's script section.
+      </div>
+
+      <!-- Error banner -->
+      <div id="errorBanner">
+        ⚠️ Could not fetch data from Firebase. Check your database URL and rules.
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-label">Total Participants</span>
+          <span class="stat-value total" id="statTotal">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Active Now</span>
+          <span class="stat-value active" id="statActive">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Exited</span>
+          <span class="stat-value exited" id="statExited">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Completed</span>
+          <span class="stat-value done" id="statDone">—</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="table-controls">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search by student ID..." />
+        </div>
+        <div class="sort-btns">
+          <button class="sort-btn active" data-sort="progress">Progress ↓</button>
+          <button class="sort-btn" data-sort="time">Time ↑</button>
+          <button class="sort-btn" data-sort="id">ID A–Z</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrap">
+        <table id="participantTable">
+          <thead>
+            <tr>
+              <th>Student ID</th>
+              <th>Current Stage</th>
+              <th>Progress</th>
+              <th>Status</th>
+              <th>Elapsed Time</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+        <div id="emptyState">
+          <div class="empty-icon">📡</div>
+          <p>No participants yet. Waiting for students to join...</p>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /dashboard -->
+
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       CONFIGURATION
+       Update this URL to match your Firebase Realtime Database.
+       ══════════════════════════════════════════════════════════ */
+    const FIREBASE_DB_URL = 'https://aenigma-33755-default-rtdb.firebaseio.com';
+
+    /* Admin password — SHA-256 hash.
+       Default password: "livewire"
+       To change: run this in browser console:
+         crypto.subtle.digest('SHA-256', new TextEncoder().encode('YOURPASS'))
+           .then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+    */
+    const ADMIN_HASH = 'd9d67a3885e8b0d3716925cb1780600091f1c99b5a398ddfee83e614708c74e6';
+    // ← SHA-256 of "livewire"
+
+    const TOTAL_STAGES = 15;
+    const REFRESH_MS   = 5000; // poll every 5 seconds
+
+    /* ── AUTH ─────────────────────────────────────────────── */
+    const authOverlay  = document.getElementById('authOverlay');
+    const dashboard    = document.getElementById('dashboard');
+    const authBtn      = document.getElementById('authBtn');
+    const adminPwInput = document.getElementById('adminPwInput');
+    const authError    = document.getElementById('authError');
+
+    // Check session
+    if (sessionStorage.getItem('aenigmaAdmin') === '1') {
+      showDashboard();
+    }
+
+    authBtn.addEventListener('click', doAuth);
+    adminPwInput.addEventListener('keypress', e => { if (e.key === 'Enter') doAuth(); });
+
+    async function doAuth() {
+      const val = adminPwInput.value;
+      if (!val) return;
+      const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(val));
+      const hash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+      if (hash === ADMIN_HASH) {
+        sessionStorage.setItem('aenigmaAdmin', '1');
+        showDashboard();
+      } else {
+        authError.style.display = 'block';
+        adminPwInput.value = '';
+        adminPwInput.focus();
+      }
+    }
+
+    function showDashboard() {
+      authOverlay.style.display = 'none';
+      dashboard.style.display   = 'block';
+      if (FIREBASE_DB_URL.includes('YOUR-PROJECT-URL')) {
+        document.getElementById('configWarn').style.display = 'block';
+      } else {
+        init();
+      }
+    }
+
+    /* ── DATA ─────────────────────────────────────────────── */
+    let participants = {};   // { safeId: {...record} }
+    let currentSort  = 'progress';
+    let searchQuery  = '';
+
+    function formatElapsed(seconds) {
+      if (!seconds || seconds < 0) return '—';
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    function liveElapsed(record) {
+      if (!record.startTime) return '—';
+      if (record.status === 'active' || record.status === 'idle') {
+        return formatElapsed(Math.floor((Date.now() - record.startTime) / 1000));
+      }
+      return formatElapsed(record.elapsedSeconds || 0);
+    }
+
+    function timeAgo(ts) {
+      if (!ts) return '—';
+      const sec = Math.floor((Date.now() - ts) / 1000);
+      if (sec < 5)  return 'just now';
+      if (sec < 60) return `${sec}s ago`;
+      if (sec < 3600) return `${Math.floor(sec/60)}m ago`;
+      return `${Math.floor(sec/3600)}h ago`;
+    }
+
+    function getEffectiveStatus(record) {
+      if (record.status === 'completed') return 'completed';
+      if (record.status === 'exited')    return 'exited';
+      // If lastSeen > 2 min ago, treat as idle
+      if (record.lastSeen && (Date.now() - record.lastSeen) > 120000) return 'idle';
+      return 'active';
+    }
+
+    function badgeHTML(status) {
+      const labels = { active: 'Active', exited: 'Exited', completed: 'Done ✓', idle: 'Idle' };
+      return `<span class="badge ${status}"><span class="badge-dot"></span>${labels[status] || status}</span>`;
+    }
+
+    function progressHTML(score) {
+      const pct = Math.round((score / TOTAL_STAGES) * 100);
+      return `<div class="progress-wrap">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:${pct}%"></div>
+        </div>
+        <span class="progress-pct">${pct}%</span>
+      </div>`;
+    }
+
+    function renderTable() {
+      const tbody     = document.getElementById('tableBody');
+      const emptyState = document.getElementById('emptyState');
+      let rows = Object.values(participants);
+
+      // Filter
+      if (searchQuery) {
+        rows = rows.filter(r => (r.studentId || '').toLowerCase().includes(searchQuery));
+      }
+
+      // Sort
+      if (currentSort === 'progress') {
+        rows.sort((a,b) => (b.progress||0) - (a.progress||0));
+      } else if (currentSort === 'time') {
+        rows.sort((a,b) => (a.elapsedSeconds||0) - (b.elapsedSeconds||0));
+      } else if (currentSort === 'id') {
+        rows.sort((a,b) => (a.studentId||'').localeCompare(b.studentId||''));
+      }
+
+      // Status sort: active/idle first
+      rows.sort((a,b) => {
+        const order = { active:0, idle:1, completed:2, exited:3 };
+        return (order[getEffectiveStatus(a)]||3) - (order[getEffectiveStatus(b)]||3);
+      });
+
+      if (rows.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+      emptyState.style.display = 'none';
+
+      tbody.innerHTML = rows.map(r => {
+        const status = getEffectiveStatus(r);
+        return `<tr>
+          <td class="cell-id">${r.studentId || '—'}</td>
+          <td class="cell-level">${r.currentLevel || '—'}</td>
+          <td>${progressHTML(r.progress || 0)}</td>
+          <td>${badgeHTML(status)}</td>
+          <td class="cell-time" data-start="${r.startTime||0}" data-elapsed="${r.elapsedSeconds||0}" data-status="${status}">${liveElapsed(r)}</td>
+          <td class="cell-lastseen">${timeAgo(r.lastSeen)}</td>
+        </tr>`;
+      }).join('');
+
+      // Stats
+      const total     = Object.values(participants).length;
+      const active    = Object.values(participants).filter(r => ['active','idle'].includes(getEffectiveStatus(r))).length;
+      const exited    = Object.values(participants).filter(r => getEffectiveStatus(r) === 'exited').length;
+      const completed = Object.values(participants).filter(r => getEffectiveStatus(r) === 'completed').length;
+
+      document.getElementById('statTotal').textContent  = total;
+      document.getElementById('statActive').textContent = active;
+      document.getElementById('statExited').textContent = exited;
+      document.getElementById('statDone').textContent   = completed;
+    }
+
+    /* ── LIVE-UPDATE ELAPSED FOR ACTIVE ROWS ─────────────── */
+    function tickElapsed() {
+      document.querySelectorAll('td[data-start]').forEach(td => {
+        const status = td.dataset.status;
+        if (status === 'active' || status === 'idle') {
+          const start = parseInt(td.dataset.start, 10);
+          if (start) {
+            const sec = Math.floor((Date.now() - start) / 1000);
+            const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+            td.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+          }
+        }
+      });
+      // Update last-seen cells
+      document.querySelectorAll('.cell-lastseen').forEach((td, i) => {
+        const rows = Object.values(participants);
+        if (i < rows.length && rows[i].lastSeen) {
+          td.textContent = timeAgo(rows[i].lastSeen);
+        }
+      });
+    }
+
+    /* ── FIREBASE FETCH ───────────────────────────────────── */
+    async function fetchParticipants() {
+      try {
+        const res = await fetch(`${FIREBASE_DB_URL}/participants.json`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        document.getElementById('errorBanner').style.display = 'none';
+        participants = data || {};
+        renderTable();
+        const now = new Date();
+        document.getElementById('lastUpdated').textContent =
+          `Updated ${now.toLocaleTimeString()}`;
+      } catch (err) {
+        document.getElementById('errorBanner').style.display = 'block';
+        document.getElementById('lastUpdated').textContent = 'Error fetching data';
+        console.error(err);
+      }
+    }
+
+    /* ── INIT ─────────────────────────────────────────────── */
+    function init() {
+      fetchParticipants();
+      setInterval(fetchParticipants, REFRESH_MS);
+      setInterval(tickElapsed, 1000);
+
+      // Search
+      document.getElementById('searchInput').addEventListener('input', e => {
+        searchQuery = e.target.value.toLowerCase().trim();
+        renderTable();
+      });
+
+      // Sort buttons
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentSort = btn.dataset.sort;
+          renderTable();
+        });
+      });
+    }
+  </script>
+
+</body>
+</html>
