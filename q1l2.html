@@ -1,10 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LiveWire</title>
+    <link rel="icon" type="image/avif" href="logo.avif" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -191,6 +192,15 @@
                             <rect x="6" y="6" width="12" height="12"></rect>
                         </svg>
                     </button>
+                    <a href="l2aud.mp3" download="l2aud.mp3"
+                        style="display: flex; align-items: center; justify-content: center; color: red; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </a>
                     <audio id="myAudio" src="l2aud.mp3" preload="metadata"></audio>
                 </div>
             </div>
@@ -234,7 +244,7 @@
         const audioProgressBar = document.getElementById('audioProgressBar');
         const audioProgressContainer = document.getElementById('audioProgressContainer');
 
-        audioPlaybtn.addEventListener('click', async () => {
+        audioPlayBtn.addEventListener('click', async () => {
             if (audio.paused) {
                 audio.play();
                 playIcon.style.display = 'none';
