@@ -644,7 +644,7 @@
           <td>${progressHTML(r.progress || 0)}</td>
           <td>${badgeHTML(status)}</td>
           <td class="cell-time" data-start="${r.startTime||0}" data-elapsed="${r.elapsedSeconds||0}" data-status="${status}">${liveElapsed(r)}</td>
-          <td class="cell-lastseen">${timeAgo(r.lastSeen)}</td>
+          <td class="cell-lastseen" data-lastseen="${r.lastSeen||0}">${timeAgo(r.lastSeen)}</td>
         </tr>`;
       }).join('');
 
@@ -674,11 +674,9 @@
         }
       });
       // Update last-seen cells
-      document.querySelectorAll('.cell-lastseen').forEach((td, i) => {
-        const rows = Object.values(participants);
-        if (i < rows.length && rows[i].lastSeen) {
-          td.textContent = timeAgo(rows[i].lastSeen);
-        }
+      document.querySelectorAll('.cell-lastseen').forEach(td => {
+        const ls = parseInt(td.dataset.lastseen, 10);
+        if (ls) td.textContent = timeAgo(ls);
       });
     }
 
